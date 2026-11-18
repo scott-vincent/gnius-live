@@ -3,6 +3,7 @@
 typedef int socklen_t;
 #else
 #include <unistd.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

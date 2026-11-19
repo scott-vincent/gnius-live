@@ -40,9 +40,11 @@ void readTeamspeakHost();
 static void forwardInit(SOCKET *sockPtr, const char* desc, const char *host, int port, sockaddr_in *addrPtr)
 {
     printf("Forwarding G-NIUS data to %s at %s port %d\n", desc, host, port);
+    fflush(stdout);
 
     if ((*sockPtr = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
         printf("Failed to create UDP socket for writing\n");
+        fflush(stdout);
         *sockPtr = 0;
         return;
     }
@@ -136,15 +138,18 @@ void readTeamspeakHost()
     fclose(inf);
 
     printf("Got Teamspeak IP address: %s\n", teamspeakHost);
+    fflush(stdout);
 }
 
 void writeTeamspeakHost()
 {
     printf("Got Teamspeak IP address: %s\n", teamspeakHost);
+    fflush(stdout);
 
     FILE* outf = fopen(TeamspeakHostFile, "w");
     if (!outf) {
         printf("Failed to write file: %s\n", TeamspeakHostFile);
+        fflush(stdout);
         return;
     }
     fprintf(outf, "%s", teamspeakHost);
@@ -163,6 +168,7 @@ void forwardData()
     int bytes = sendto(liveSockfd, data, strlen(data), 0, (SOCKADDR*)&liveWriteAddr, sizeof(liveWriteAddr));
     if (bytes <= 0) {
         printf("Failed to send data to able live (%s)\n", AbleLiveHost);
+        fflush(stdout);
     }
 
     // Forward to RT host
@@ -170,6 +176,7 @@ void forwardData()
         bytes = sendto(rtSockfd, data, strlen(data), 0, (SOCKADDR*)&rtWriteAddr, sizeof(rtWriteAddr));
         if (bytes <= 0) {
             printf("Failed to send data to teamspeak host (%s)\n", teamspeakHost);
+            fflush(stdout);
         }
     }
 }

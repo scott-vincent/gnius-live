@@ -37,6 +37,31 @@ static sockaddr_in rtWriteAddr;
 void milliSleep(int milliSecs);
 void readTeamspeakHost();
 
+static void forwardInit(SOCKET *sockPtr, const char* desc, const char *host, int port, sockaddr_in *addrPtr)
+{
+    printf("Forwarding G-NIUS data to %s at %s port %d\n", desc, host, port);
+
+    if ((*sockPtr = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
+        printf("Failed to create UDP socket for writing\n");
+        *sockPtr = 0;
+        return;
+    }
+
+    int opt = 1;
+    setsockopt(*sockPtr, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
+
+    addrPtr->sin_family = AF_INET;
+    addrPtr->sin_port = htons(port);
+    inet_pton(AF_INET, host, &(addrPtr->sin_addr));
+}
+
+static void forwardCleanup(SOCKET *sock)
+{
+    if (*sock != -1) {
+        closesocket(*sock);
+        *sock = -1;
+    }
+}
 
 static void serverInit()
 {
@@ -46,6 +71,7 @@ static void serverInit()
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
         printf("Server failed to create UDP socket\n");
         fflush(stdout);
+        _quit = true;
         return;
     }
 
@@ -65,41 +91,18 @@ static void serverInit()
 #endif
         printf("Server failed to bind to localhost port %d: %ld\n", GniusLivePort, error);
         fflush(stdout);
+        _quit = true;
         return;
     }
 
     printf("Server listening on port %d\n", GniusLivePort);
     fflush(stdout);
 
-    printf("Forwarding G-NIUS data to able-live at %s port %d\n", AbleLiveHost, AbleLivePort);
-
-    if ((liveSockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
-        printf("Failed to create UDP socket for writing\n");
-        liveSockfd = 0;
-        return;
+    forwardInit(&liveSockfd, "able-live", AbleLiveHost, AbleLivePort, &liveWriteAddr);
+    
+    if (*teamspeakHost != '\0') {
+        forwardInit(&rtSockfd, "RT server", teamspeakHost, RtPort, &rtWriteAddr);
     }
-
-    opt = 1;
-    setsockopt(liveSockfd, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
-
-    liveWriteAddr.sin_family = AF_INET;
-    liveWriteAddr.sin_port = htons(AbleLivePort);
-    inet_pton(AF_INET, AbleLiveHost, &liveWriteAddr.sin_addr);
-
-    printf("Forwarding G-NIUS data to RT server at %s port %d\n", teamspeakHost, RtPort);
-
-    if ((rtSockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
-        printf("Failed to create UDP socket for writing\n");
-        rtSockfd = 0;
-        return;
-    }
-
-    opt = 1;
-    setsockopt(rtSockfd, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
-
-    rtWriteAddr.sin_family = AF_INET;
-    rtWriteAddr.sin_port = htons(RtPort);
-    inet_pton(AF_INET, teamspeakHost, &rtWriteAddr.sin_addr);
 
     _initialised = true;
 }
@@ -108,15 +111,11 @@ static void serverCleanUp()
 {
     if (sockfd != -1) {
         closesocket(sockfd);
+        sockfd = -1;
     }
 
-    if (liveSockfd != -1) {
-        closesocket(liveSockfd);
-    }
-
-    if (rtSockfd != -1) {
-        closesocket(rtSockfd);
-    }
+    forwardCleanup(&liveSockfd);
+    forwardCleanup(&rtSockfd);
 
     printf("G-NIUS Server exiting\n");
     _quit = true;
@@ -150,6 +149,9 @@ void writeTeamspeakHost()
     }
     fprintf(outf, "%s\n", teamspeakHost);
     fclose(outf);
+
+    forwardCleanup(&rtSockfd);
+    forwardInit(&rtSockfd, "RT server", teamspeakHost, RtPort, &rtWriteAddr);
 }
 
 void forwardData()

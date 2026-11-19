@@ -147,7 +147,7 @@ void writeTeamspeakHost()
         printf("Failed to write file: %s\n", TeamspeakHostFile);
         return;
     }
-    fprintf(outf, "%s\n", teamspeakHost);
+    fprintf(outf, "%s", teamspeakHost);
     fclose(outf);
 
     forwardCleanup(&rtSockfd);

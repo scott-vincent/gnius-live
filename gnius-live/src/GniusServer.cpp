@@ -161,8 +161,8 @@ void writeTeamspeakHost()
 
 void forwardData()
 {
-    printf("Forward data %s\n", data);
-    fflush(stdout);
+    //printf("Forward data %s\n", data);
+    //fflush(stdout);
 
     // Forward to able-live
     int bytes = sendto(liveSockfd, data, strlen(data), 0, (SOCKADDR*)&liveWriteAddr, sizeof(liveWriteAddr));
